@@ -1,0 +1,66 @@
+<UserControl x:Class="CammusPlugin.UI.SettingsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignWidth="520" d:DesignHeight="240"
+             Background="#1F1F1F"
+             Foreground="#E0E0E0"
+             FontFamily="Segoe UI"
+             FontSize="13">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Cammus Control"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,16"/>
+
+        <!-- Status pill: colored ellipse + label, updated by code-behind on a timer. -->
+        <Border Grid.Row="1"
+                Background="#2A2A2A"
+                CornerRadius="14"
+                Padding="10,6"
+                HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse x:Name="StatusDot"
+                         Width="10" Height="10"
+                         Fill="#888888"
+                         VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusText"
+                           Text="Not connected"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="2" Margin="0,18,0,0">
+            <TextBlock Text="Detected wheel:" Foreground="#888888"/>
+            <TextBlock x:Name="ModelText"
+                       Text="—"
+                       FontSize="16"
+                       Margin="0,2,0,16"/>
+
+            <TextBlock Text="Last sent (LEDs lit / velocity kph / gear):"
+                       Foreground="#888888"/>
+            <TextBlock x:Name="TelemetryText"
+                       Text="—"
+                       FontFamily="Consolas"
+                       Margin="0,2,0,0"/>
+        </StackPanel>
+
+        <Button x:Name="TestButton"
+                Grid.Row="3"
+                Content="Send test pattern (5 LEDs lit, 60 kph, gear 3)"
+                Padding="14,6"
+                HorizontalAlignment="Left"
+                Click="OnTestButtonClick"/>
+    </Grid>
+</UserControl>

@@ -1,0 +1,56 @@
+{
+  "DescriptorUniqueId": "e1b082bd-ee26-4a70-bdee-cffdf5637117",
+  "SchemaVersion": 1,
+  "MinimumSimHubVersion": "9.11.8",
+  "DeviceDescription": {
+    "BrandName": "Cammus",
+    "ProductName": "C5"
+  },
+  "LedsFeature": {
+    "IsIndividualLedsSectionEnabled": true,
+    "PhysicalLedsMappings": {
+      "Items": [
+        {
+          "SourceRole": 1,
+          "SourceIndex": 0,
+          "RepeatCount": 9,
+          "RepeatMode": 1
+        },
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ]
+    },
+    "LogicalTelemetryLeds": {
+      "LedCount": 9,
+      "Segments": [],
+      "IsEnabled": true
+    },
+    "LogicalButtonsSection": {
+      "IsButtonEditorEnabled": false,
+      "Items": [],
+      "IsEnabled": false
+    },
+    "IsEnabled": true
+  },
+  "HardwareInterface": {
+    "HardwareInterface": {
+      "TypeName": "LedsStandardHIDProtocol",
+      "IsSerialNumberPickerEnabled": false,
+      "HIDUsagePage": "0xFF00",
+      "HIDUsage": "0x01",
+      "HIDReportId": "0x00",
+      "HIDReportSize": 14,
+      "DeviceDetection": {
+        "Vid": "0x3416",
+        "Pid": "0x1021"
+      }
+    }
+  },
+  "IsLocked": true
+}

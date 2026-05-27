@@ -1,0 +1,57 @@
+{
+  "DescriptorUniqueId": "4726f206-5377-4510-b50a-9c38dec2bee5",
+  "SchemaVersion": 1,
+  "MinimumSimHubVersion": "9.11.8",
+  "DeviceDescription": {
+    "BrandName": "Cammus",
+    "ProductName": "C12"
+  },
+  "LedsFeature": {
+    "IsIndividualLedsSectionEnabled": true,
+    "PhysicalLedsMappings": {
+      "Items": [
+        {
+          "SourceRole": 1,
+          "SourceIndex": 0,
+          "RepeatCount": 10,
+          "RepeatMode": 1
+        },
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ]
+    },
+    "LogicalTelemetryLeds": {
+      "LedCount": 10,
+      "Segments": [],
+      "IsEnabled": true
+    },
+    "LogicalButtonsSection": {
+      "IsButtonEditorEnabled": false,
+      "Items": [],
+      "IsEnabled": false
+    },
+    "IsEnabled": true
+  },
+  "HardwareInterface": {
+    "HardwareInterface": {
+      "TypeName": "LedsStandardHIDProtocol",
+      "IsSerialNumberPickerEnabled": false,
+      "HIDUsagePage": "0xFF00",
+      "HIDUsage": "0x01",
+      "HIDReportId": "0x00",
+      "HIDReportSize": 16,
+      "DeviceDetection": {
+        "Vid": "0x3416",
+        "Pid": "0x1023"
+      }
+    }
+  },
+  "IsLocked": true
+}
