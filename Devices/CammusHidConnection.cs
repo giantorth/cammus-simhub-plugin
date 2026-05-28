@@ -5,13 +5,6 @@ using HidSharp;
 
 namespace CammusPlugin.Devices
 {
-    /// <summary>
-    /// Thin HidSharp wrapper: scans for the first Cammus VID + (any of the
-    /// candidate PIDs), opens a write stream, exposes a Write that marks
-    /// itself disconnected on any I/O failure so the next DataUpdate can
-    /// re-probe. No reconnection timer of its own — the plugin's per-frame
-    /// loop handles re-detection.
-    /// </summary>
     internal sealed class CammusHidConnection : IDisposable
     {
         private readonly object _gate = new object();
@@ -28,11 +21,6 @@ namespace CammusPlugin.Devices
             get { lock (_gate) return _model; }
         }
 
-        /// <summary>
-        /// Probe for any supported Cammus device and open it. Returns the
-        /// matched spec on success, null if no device is currently attached
-        /// or the open failed.
-        /// </summary>
         public CammusModelSpec? TryConnect()
         {
             lock (_gate)
@@ -85,10 +73,6 @@ namespace CammusPlugin.Devices
             }
         }
 
-        /// <summary>
-        /// Write a HID report. On any I/O failure the stream is closed and
-        /// IsConnected goes false; the next TryConnect() will re-probe.
-        /// </summary>
         public bool Write(byte[] report)
         {
             HidStream? local;

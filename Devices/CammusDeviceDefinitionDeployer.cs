@@ -4,28 +4,11 @@ using System.Reflection;
 
 namespace CammusPlugin.Devices
 {
-    /// <summary>
-    /// Extracts the embedded device.json templates and writes them into
-    /// <c>{SimHub}/DevicesDefinitions/User/Cammus C5/device.json</c> and
-    /// <c>…/Cammus C12/device.json</c>. Idempotent: skips writes when the
-    /// existing file has the matching DescriptorUniqueId, so a SimHub
-    /// restart isn't needed unless the template itself changed. Re-deploys
-    /// on every plugin Init because SimHub deletes the file when a user
-    /// removes the device (simhub.md line 696).
-    /// </summary>
     internal static class CammusDeviceDefinitionDeployer
     {
         private const string ResC5 = "CammusPlugin.Devices.CammusC5.device.json";
         private const string ResC12 = "CammusPlugin.Devices.CammusC12.device.json";
 
-        /// <summary>
-        /// Deploy every Cammus device.json template unconditionally. SimHub
-        /// only instantiates a device when its VID/PID matches a USB-attached
-        /// device, so having both templates on disk is harmless — and it
-        /// lets a developer without hardware inspect what got written, and
-        /// lets SimHub recognize a wheel the moment it's hot-plugged with
-        /// no plugin restart required.
-        /// </summary>
         public static void DeployAll()
         {
             DeployOne(CammusModelSpec.C5, ResC5);
@@ -42,9 +25,7 @@ namespace CammusPlugin.Devices
 
                 if (File.Exists(targetPath))
                 {
-                    // Skip rewrite when the descriptor matches — avoids the
-                    // "restart SimHub" prompt on every plugin reload. A
-                    // mismatch (or a parse failure) is rewrite-worthy.
+                    // Skip rewrite when descriptor matches to avoid spurious "restart SimHub" prompts.
                     try
                     {
                         var existing = File.ReadAllText(targetPath);

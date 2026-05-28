@@ -8,16 +8,6 @@ using SimHub.Plugins.OutputPlugins.GraphicalDash.PSE;
 
 namespace CammusPlugin.Devices
 {
-    /// <summary>
-    /// Virtual <see cref="ILedDeviceManager"/> injected into SimHub's LED
-    /// pipeline for a Cammus wheel. The injection's purpose is twofold:
-    /// (a) report Connected so SimHub enables its LED-effects UI, and
-    /// (b) receive computed <see cref="Color"/> arrays each frame so we can
-    /// collapse them to the single intensity value the Cammus firmware
-    /// accepts (lit-count for C5, percent for C12) and write the HID
-    /// report — combined with cached velocity/gear pulled from the plugin's
-    /// most recent DataUpdate.
-    /// </summary>
     internal sealed class CammusLedDeviceManager : ILedDeviceManager
     {
         private readonly CammusModelSpec _spec;
@@ -62,14 +52,6 @@ namespace CammusPlugin.Devices
 
         public ILedDriverBase? GetLedDriver() => null;
 
-        /// <summary>
-        /// Called every frame by SimHub's LED pipeline. We materialise the
-        /// computed Color[], count non-black entries (that is the "effective
-        /// fill level" SimHub's redline curve produced), combine with the
-        /// plugin's most recently cached velocity/gear, and write one HID
-        /// report. simhub.md note line 673: do NOT early-return on an empty
-        /// led array — raw overrides arrive via rawState in Exclusive mode.
-        /// </summary>
         public void Display(
             Func<Color[]> leds,
             Func<Color[]> buttons,
@@ -99,11 +81,8 @@ namespace CammusPlugin.Devices
 
                 var plugin = CammusPlugin.Instance;
                 if (plugin == null) return;
-                if (!plugin.Connection.IsConnected) return;
 
-                // In SimHub's Exclusive (Individual-LEDs-only) mode the logical
-                // ledColors arrive empty and the raw overrides come on rawState;
-                // merge so user effects in either mode reach the wheel.
+                // SimHub Exclusive mode delivers user effects on rawState, not ledColors.
                 Color[] source = ledColors;
                 if (rawColors.Length > 0)
                 {
@@ -123,26 +102,16 @@ namespace CammusPlugin.Devices
                     source = merged;
                 }
 
-                // Count non-black colors weighted by per-frame rpmBrightness so
-                // a user setting SimHub's LED brightness to 0 still produces a
-                // dark wheel (lit==0). Threshold > 0 keeps every meaningful
-                // hue, including dim red at the bottom of a redline curve.
                 double brightness = rpmBrightness < 0 ? 0 : (rpmBrightness > 1 ? 1 : rpmBrightness);
                 int lit = 0;
                 int max = Math.Min(source.Length, _spec.LedCount);
                 for (int i = 0; i < max; i++)
                 {
                     var c = source[i];
-                    double r = c.R * brightness;
-                    double g = c.G * brightness;
-                    double b = c.B * brightness;
-                    if (r + g + b > 0.5) lit++;
+                    if (c.R * brightness + c.G * brightness + c.B * brightness > 0.5) lit++;
                 }
 
-                ushort vel = plugin.LastVelocity;
-                int gear = plugin.LastGear;
-                var report = _spec.BuildReport(lit, vel, gear);
-                plugin.Connection.Write(report);
+                plugin.SendLedUpdate(lit);
             }
             catch (Exception ex)
             {
@@ -154,12 +123,7 @@ namespace CammusPlugin.Devices
             }
         }
 
-        /// <summary>
-        /// Called every frame from the device extension's DataUpdate. Fires
-        /// OnConnect/OnDisconnect on transitions so SimHub resumes/pauses
-        /// the Display() callback path (without these events SimHub will not
-        /// notice a reconnect — simhub.md line 648).
-        /// </summary>
+        // Fires OnConnect/OnDisconnect events so SimHub resumes Display() after a reconnect.
         internal void UpdateConnectionState()
         {
             bool connected = IsConnected();

@@ -10,14 +10,6 @@ using SimHub.Plugins.OutputPlugins.GraphicalDash.LedModules;
 
 namespace CammusPlugin.Devices
 {
-    /// <summary>
-    /// Per-device-instance extension. Resolves the matching CammusModelSpec
-    /// from the device's DescriptorUniqueId, then on the first DataUpdate
-    /// (NOT Init — see simhub.md line 692 about LedModuleDevice.SetSettings
-    /// running after Init) injects a CammusLedDeviceManager into the
-    /// underlying LedModuleSettings.DeviceDriver so SimHub's effects
-    /// pipeline flows into our HID write path.
-    /// </summary>
     internal sealed class CammusWheelDeviceExtension : DeviceExtension
     {
         private CammusLedDeviceManager? _ledDriver;
@@ -41,8 +33,7 @@ namespace CammusPlugin.Devices
                 CammusLog.Debug($"[Cammus] Extension Init: {_spec.DisplayName}");
             }
 
-            // Injection deferred to DataUpdate — calling here precedes
-            // LedModuleDevice.SetSettings(), which would throw on lookup.
+            // Injection deferred to DataUpdate so LedModuleDevice.SetSettings() runs first.
         }
 
         public override void DataUpdate(PluginManager pluginManager, ref GameData data)
@@ -59,49 +50,73 @@ namespace CammusPlugin.Devices
         private void InjectLedDriver()
         {
             if (_driverInjected) return;
-            if (_spec == null) return;
+            if (_spec == null)
+            {
+                CammusLog.Warn("[Cammus] InjectLedDriver: _spec is null (DeviceTypeID didn't resolve to a known model)");
+                return;
+            }
 
             try
             {
+                int instanceCount = 0;
+                int ledModuleSeen = 0;
                 foreach (var instance in LinkedDevice.GetInstances())
                 {
-                    if (instance is LedModuleDevice lmd && lmd.ledModuleSettings != null)
+                    instanceCount++;
+                    var instType = instance?.GetType().FullName ?? "<null>";
+                    CammusLog.Debug($"[Cammus] InjectLedDriver: instance #{instanceCount} = {instType}");
+
+                    if (instance is LedModuleDevice lmd)
                     {
+                        ledModuleSeen++;
+                        if (lmd.ledModuleSettings == null)
+                        {
+                            CammusLog.Warn("[Cammus] InjectLedDriver: found LedModuleDevice but ledModuleSettings is null");
+                            continue;
+                        }
+
+                        var settingsType = lmd.ledModuleSettings.GetType();
                         _ledDriver = new CammusLedDeviceManager(_spec)
                         {
                             LedModuleSettings = lmd.ledModuleSettings
                         };
 
-                        var prop = typeof(LedModuleSettings).GetProperty(
+                        var prop = settingsType.GetProperty(
                             "DeviceDriver",
                             BindingFlags.Public | BindingFlags.Instance);
+                        if (prop == null)
+                        {
+                            CammusLog.Warn(
+                                $"[Cammus] InjectLedDriver: LedModuleSettings (runtime type {settingsType.FullName}) has no public 'DeviceDriver' property");
+                            return;
+                        }
 
-                        var setter = prop?.GetSetMethod(nonPublic: true);
-                        if (setter != null)
+                        var setter = prop.GetSetMethod(nonPublic: true);
+                        if (setter == null)
                         {
-                            setter.Invoke(lmd.ledModuleSettings, new object[] { _ledDriver });
-                            _driverInjected = true;
-                            CammusLog.Info(
-                                $"[Cammus] Injected virtual LED driver for {_spec.DisplayName}");
+                            CammusLog.Warn(
+                                $"[Cammus] InjectLedDriver: 'DeviceDriver' property has no setter (CanRead={prop.CanRead}, CanWrite={prop.CanWrite}, propType={prop.PropertyType.FullName})");
+                            return;
                         }
-                        else
-                        {
-                            CammusLog.Warn("[Cammus] LedModuleSettings.DeviceDriver setter not found");
-                        }
+
+                        setter.Invoke(lmd.ledModuleSettings, new object[] { _ledDriver });
+                        _driverInjected = true;
+                        CammusLog.Info(
+                            $"[Cammus] Injected virtual LED driver for {_spec.DisplayName} (settingsType={settingsType.FullName})");
                         return;
                     }
                 }
-                CammusLog.Debug("[Cammus] No LedModuleDevice on this instance yet — will retry next frame");
+
+                CammusLog.Debug(
+                    $"[Cammus] InjectLedDriver: walked {instanceCount} instance(s), {ledModuleSeen} were LedModuleDevice — will retry next frame");
             }
             catch (Exception ex)
             {
-                CammusLog.Error($"[Cammus] InjectLedDriver threw: {ex.Message}");
+                CammusLog.Error($"[Cammus] InjectLedDriver threw: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
-        // SimHub may append _UserProject / _Embedded to template-based device
-        // type IDs (simhub.md line 699). Strip so spec lookup matches the
-        // raw GUID we ship in device.json.
+        // SimHub appends _UserProject / _Embedded suffixes; strip before GUID lookup.
         private static string? StripDeviceTypeIdSuffix(string? typeId)
         {
             if (string.IsNullOrEmpty(typeId)) return typeId;
@@ -117,11 +132,6 @@ namespace CammusPlugin.Devices
 
         public override Control CreateSettingControl()
         {
-            // The plugin already exposes a top-level settings tab; the per-
-            // device extension tab is intentionally minimal. Label (a
-            // ContentControl) is the lightest Control-derived host for a
-            // single line of text — TextBlock would be lighter but isn't a
-            // Control.
             return new Label
             {
                 Content = _spec?.DisplayName ?? "Cammus device",

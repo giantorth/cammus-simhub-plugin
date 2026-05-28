@@ -42,13 +42,10 @@ namespace CammusPlugin.UI
             if (plugin != null)
             {
                 TelemetryText.Text =
-                    $"vel={plugin.LastVelocity,5} kph   gear={plugin.LastGear}";
+                    $"lit={plugin.LastLit,2}   vel={plugin.LastVelocity,5} kph   gear={plugin.LastGear}";
             }
         }
 
-        // Send a synthetic report so the user can verify the wire is alive
-        // without launching a game. lit=5, vel=60, gear=3. Uses the spec's
-        // own report builder so the byte layout stays single-sourced.
         private void OnTestButtonClick(object sender, RoutedEventArgs e)
         {
             var plugin = CammusPlugin.Instance;
@@ -61,9 +58,8 @@ namespace CammusPlugin.UI
 
             try
             {
-                var report = spec.BuildReport(lit: 5, velocity: 60, gear: 3);
-                bool ok = plugin.Connection.Write(report);
-                StatusText.Text = ok ? "Test pattern sent" : "Test pattern write failed";
+                plugin.SendLedUpdate(lit: 5);
+                StatusText.Text = "Test pattern sent (lit=5)";
             }
             catch (Exception ex)
             {

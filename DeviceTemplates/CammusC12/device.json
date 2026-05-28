@@ -48,8 +48,8 @@
       "HIDReportId": "0x00",
       "HIDReportSize": 16,
       "DeviceDetection": {
-        "Vid": "0x3416",
-        "Pid": "0x1023"
+        "Vid": "0x9999",
+        "Pid": "0xC12C"
       }
     }
   },

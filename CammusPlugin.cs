@@ -15,18 +15,25 @@ namespace CammusPlugin
 
         private readonly CammusHidConnection _connection = new CammusHidConnection();
         private int _framesSinceReconnect;
-        // Re-probe at ~2 Hz when disconnected; SimHub fires DataUpdate at the
-        // game's frame rate (~60 Hz typical) so a 30-frame gate amortises the
-        // HID enumeration cost.
         private const int ReconnectFrameInterval = 30;
 
         internal CammusHidConnection Connection => _connection;
 
-        /// <summary>Last value the LED driver sees in its Display() pass.</summary>
         internal ushort LastVelocity { get; private set; }
-        /// <summary>Gear value as the Cammus firmware expects (1-based forward).</summary>
         internal int LastGear { get; private set; } = 1;
+        internal int LastLit { get; private set; }
         internal CammusModelSpec? DetectedModel => _connection.Model;
+
+        internal void SendLedUpdate(int lit)
+        {
+            var spec = _connection.Model;
+            if (spec == null) return;
+            if (!_connection.IsConnected) return;
+
+            LastLit = lit;
+            var report = spec.BuildReport(lit, LastVelocity, LastGear);
+            _connection.Write(report);
+        }
 
         public PluginManager? PluginManager { get; set; }
 
@@ -40,25 +47,14 @@ namespace CammusPlugin
 
             CammusLog.Info("[Cammus] Plugin Init");
 
-            // Deploy both device templates eagerly. SimHub only instantiates
-            // a device when its VID/PID is USB-attached, so writing both
-            // templates is harmless and avoids a chicken-and-egg: detection-
-            // driven deploy would never write anything until a wheel was
-            // physically connected, which prevents inspection and means a
-            // hot-plug requires a plugin restart for SimHub to pick up the
-            // newly-written template.
             try { CammusDeviceDefinitionDeployer.DeployAll(); }
             catch (Exception ex) { CammusLog.Error($"[Cammus] DeployAll threw: {ex.Message}"); }
 
-            // First connection attempt — non-fatal on failure, DataUpdate retries.
             _connection.TryConnect();
         }
 
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
-            // Periodic reconnect probe when disconnected. Avoids enumerating
-            // HID devices on every frame. No deploy needed here — both
-            // templates were written in Init.
             if (!_connection.IsConnected)
             {
                 _framesSinceReconnect++;
@@ -73,8 +69,6 @@ namespace CammusPlugin
                 _framesSinceReconnect = 0;
             }
 
-            // Cache telemetry for the LED driver's next Display() pass.
-            // GameData.NewData is null during menus / when no game is active.
             var nd = data.NewData;
             if (nd != null)
             {
@@ -93,8 +87,6 @@ namespace CammusPlugin
         public System.Windows.Controls.Control GetWPFSettingsControl(PluginManager pluginManager)
             => new SettingsControl();
 
-        // SpeedKmh is a double (kph). The Cammus firmware reads bytes[2..3]
-        // (C5) / bytes[4..5] (C12) as a big-endian u16 — clamp into that.
         private static ushort ClampToUshort(double kmh)
         {
             if (kmh <= 0) return 0;
@@ -102,10 +94,7 @@ namespace CammusPlugin
             return (ushort)Math.Round(kmh);
         }
 
-        // GameData.Gear is a string per GameReaderCommon: "N", "R", "1".."N".
-        // Firmware expects 1-based forward gears in bytes[4]/(gear-1). We map
-        // reverse and neutral to 1 so (gear-1)=0 lights the firmware's
-        // "no gear" cell (the monocoque source clamps the same way).
+        // R/N → 1 so firmware sees (gear-1)=0 as the "no gear" cell.
         private static int ParseGear(string? raw)
         {
             if (string.IsNullOrEmpty(raw)) return 1;

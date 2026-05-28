@@ -9,12 +9,6 @@ namespace CammusPlugin.Devices
         C12 = 2,
     }
 
-    /// <summary>
-    /// Per-model hardware spec + HID report builder. The Cammus protocol
-    /// (reverse-engineered in monocoque commit a810044) packs RPM + velocity
-    /// + gear into a single fixed-size HID report; the firmware decides how
-    /// to drive its onboard LEDs from that.
-    /// </summary>
     internal sealed class CammusModelSpec
     {
         public CammusWheel Wheel { get; }
@@ -47,9 +41,7 @@ namespace CammusPlugin.Devices
             deviceFolderName: "Cammus C5",
             displayName: "Cammus C5");
 
-        // LedCount assumption — see plan: confirm against physical hardware
-        // (the C12 firmware itself accepts a percentage so the count only
-        // affects the SimHub effects UI).
+        // C12 LedCount is a UI-only assumption — firmware takes a 0..100 percent, not a count.
         public static readonly CammusModelSpec C12 = new CammusModelSpec(
             CammusWheel.C12, 0x3416, 0x1023,
             ledCount: 10, reportSize: 16,
@@ -75,16 +67,9 @@ namespace CammusPlugin.Devices
             return null;
         }
 
-        /// <summary>
-        /// Build the HID report for this model.
-        /// <paramref name="lit"/> is the count of non-black LEDs (0..LedCount).
-        /// </summary>
         public byte[] BuildReport(int lit, ushort velocity, int gear)
         {
             var bytes = new byte[ReportSize];
-            // gear-1 underflows on input 0 — caller is responsible for
-            // mapping "no gear"/"R"/"N" to 1 (so gear-1=0 hits the firmware's
-            // "no gear" cell). Clamp here defensively.
             if (gear < 1) gear = 1;
 
             switch (Wheel)
@@ -99,14 +84,11 @@ namespace CammusPlugin.Devices
             return bytes;
         }
 
-        // C5: 14 bytes. bytes[1] is a lit-LED count 0..9; sending 10 makes the
-        // whole strip blink (firmware-side shift signal). When SimHub's effects
-        // light every available LED we promote lit==LedCount → 10 so the user's
-        // chosen redline color reaches the wheel as the all-blink shift.
         private void BuildC5(byte[] bytes, int lit, ushort velocity, int gear)
         {
             if (lit < 0) lit = 0;
             if (lit > LedCount) lit = LedCount;
+            // 10 == firmware-side all-LED blink (shift signal).
             int wireLit = (lit >= LedCount) ? 10 : lit;
 
             bytes[0] = 0xFC;
@@ -116,11 +98,6 @@ namespace CammusPlugin.Devices
             bytes[4] = (byte)((gear - 1) & 0xFF);
         }
 
-        // C12: 16 bytes. bytes[3] is RPM percent 0..100. We approximate the
-        // monocoque source's rpm/maxrpm*100 by deriving the percent from the
-        // count of lit LEDs in SimHub's computed effect — gives the user's
-        // configured redline curve a natural mapping without needing the raw
-        // RPM here.
         private void BuildC12(byte[] bytes, int lit, ushort velocity, int gear)
         {
             if (lit < 0) lit = 0;
