@@ -58,8 +58,8 @@ namespace CammusPlugin.UI
 
             try
             {
-                plugin.SendLedUpdate(lit: 5);
-                StatusText.Text = "Test pattern sent (lit=5)";
+                plugin.SendLedUpdate(lit: 5, velocity: 60, gear: 3);
+                StatusText.Text = "Test pattern sent (lit=5, 60 kph, gear 3)";
             }
             catch (Exception ex)
             {

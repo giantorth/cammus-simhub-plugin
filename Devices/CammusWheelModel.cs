@@ -69,7 +69,9 @@ namespace CammusPlugin.Devices
 
         public byte[] BuildReport(int lit, ushort velocity, int gear)
         {
-            var bytes = new byte[ReportSize];
+            // bytes[0] is the HID report ID (0); HidSharp/Windows strips it before the wire.
+            // The protocol payload (0xFC.. / 0xFA..) starts at bytes[1].
+            var bytes = new byte[ReportSize + 1];
             if (gear < 1) gear = 1;
 
             switch (Wheel)
@@ -91,11 +93,11 @@ namespace CammusPlugin.Devices
             // 10 == firmware-side all-LED blink (shift signal).
             int wireLit = (lit >= LedCount) ? 10 : lit;
 
-            bytes[0] = 0xFC;
-            bytes[1] = (byte)wireLit;
-            bytes[2] = (byte)((velocity >> 8) & 0xFF);
-            bytes[3] = (byte)(velocity & 0xFF);
-            bytes[4] = (byte)((gear - 1) & 0xFF);
+            bytes[1] = 0xFC;
+            bytes[2] = (byte)wireLit;
+            bytes[3] = (byte)((velocity >> 8) & 0xFF);
+            bytes[4] = (byte)(velocity & 0xFF);
+            bytes[5] = (byte)((gear - 1) & 0xFF);
         }
 
         private void BuildC12(byte[] bytes, int lit, ushort velocity, int gear)
@@ -105,13 +107,13 @@ namespace CammusPlugin.Devices
             int pct = LedCount > 0 ? (100 * lit) / LedCount : 0;
             if (pct > 100) pct = 100;
 
-            bytes[0] = 0xFA;
-            bytes[1] = 0xFB;
-            bytes[2] = 0xD4;
-            bytes[3] = (byte)pct;
-            bytes[4] = (byte)((velocity >> 8) & 0xFF);
-            bytes[5] = (byte)(velocity & 0xFF);
-            bytes[6] = (byte)((gear - 1) & 0xFF);
+            bytes[1] = 0xFA;
+            bytes[2] = 0xFB;
+            bytes[3] = 0xD4;
+            bytes[4] = (byte)pct;
+            bytes[5] = (byte)((velocity >> 8) & 0xFF);
+            bytes[6] = (byte)(velocity & 0xFF);
+            bytes[7] = (byte)((gear - 1) & 0xFF);
         }
     }
 }

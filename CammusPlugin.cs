@@ -25,13 +25,18 @@ namespace CammusPlugin
         internal CammusModelSpec? DetectedModel => _connection.Model;
 
         internal void SendLedUpdate(int lit)
+            => SendLedUpdate(lit, LastVelocity, LastGear);
+
+        internal void SendLedUpdate(int lit, ushort velocity, int gear)
         {
             var spec = _connection.Model;
             if (spec == null) return;
             if (!_connection.IsConnected) return;
 
             LastLit = lit;
-            var report = spec.BuildReport(lit, LastVelocity, LastGear);
+            LastVelocity = velocity;
+            LastGear = gear;
+            var report = spec.BuildReport(lit, velocity, gear);
             _connection.Write(report);
         }
 
