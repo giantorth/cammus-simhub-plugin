@@ -14,25 +14,33 @@ namespace CammusPlugin
         internal static CammusPlugin? Instance { get; private set; }
 
         private readonly CammusHidConnection _connection = new CammusHidConnection();
+        private CammusReportSender? _sender;
         private int _framesSinceReconnect;
         private const int ReconnectFrameInterval = 30;
+
+        private volatile bool _gameActive;
+        private bool _wasConnected;
 
         internal CammusHidConnection Connection => _connection;
 
         internal ushort LastVelocity { get; private set; }
-        internal int LastGear { get; private set; } = 1;
+        internal int LastGear { get; private set; }
         internal int LastLit { get; private set; }
         internal CammusModelSpec? DetectedModel => _connection.Model;
 
+        // Display()-driven path: forced blank while no game is active, so a stray
+        // late frame can't relight the wheel after we've cleared it.
         internal void SendLedUpdate(int lit)
         {
-            var spec = _connection.Model;
-            if (spec == null) return;
-            if (!_connection.IsConnected) return;
+            if (!_gameActive) lit = 0;
+            SendLedUpdate(lit, LastVelocity, LastGear);
+        }
 
+        // Explicit path (test button): sends exactly what it's given, game or not.
+        internal void SendLedUpdate(int lit, ushort velocity, int gear)
+        {
             LastLit = lit;
-            var report = spec.BuildReport(lit, LastVelocity, LastGear);
-            _connection.Write(report);
+            _sender?.Submit(lit, velocity, gear);
         }
 
         public PluginManager? PluginManager { get; set; }
@@ -50,6 +58,7 @@ namespace CammusPlugin
             try { CammusDeviceDefinitionDeployer.DeployAll(); }
             catch (Exception ex) { CammusLog.Error($"[Cammus] DeployAll threw: {ex.Message}"); }
 
+            _sender = new CammusReportSender(_connection);
             _connection.TryConnect();
         }
 
@@ -69,17 +78,36 @@ namespace CammusPlugin
                 _framesSinceReconnect = 0;
             }
 
+            bool nowConnected = _connection.IsConnected;
+            bool justConnected = nowConnected && !_wasConnected;
+            _wasConnected = nowConnected;
+
             var nd = data.NewData;
-            if (nd != null)
+            bool active = data.GameRunning && nd != null;
+
+            if (active)
             {
-                LastVelocity = ClampToUshort(nd.SpeedKmh);
+                LastVelocity = ClampToUshort(nd!.SpeedKmh);
                 LastGear = ParseGear(nd.Gear);
+                _gameActive = true;
+            }
+            else
+            {
+                LastVelocity = 0;
+                LastGear = 0;
+                // Blank the wheel when the game stops (or on a fresh connect while
+                // idle). Display() may not fire when no game is running, so the
+                // clear is driven here. The sender dedups repeats.
+                bool wasActive = _gameActive;
+                _gameActive = false;
+                if (wasActive || justConnected) SendLedUpdate(0);
             }
         }
 
         public void End(PluginManager pluginManager)
         {
             CammusLog.Info("[Cammus] Plugin End — closing HID");
+            try { _sender?.Dispose(); } catch { }
             try { _connection.Close(); } catch { }
             if (ReferenceEquals(Instance, this)) Instance = null;
         }
@@ -94,16 +122,16 @@ namespace CammusPlugin
             return (ushort)Math.Round(kmh);
         }
 
-        // R/N → 1 so firmware sees (gear-1)=0 as the "no gear" cell.
+        // Send the actual gear number; R/N/empty → 0 = "no gear" cell.
         private static int ParseGear(string? raw)
         {
-            if (string.IsNullOrEmpty(raw)) return 1;
+            if (string.IsNullOrEmpty(raw)) return 0;
             if (int.TryParse(raw, out int g) && g > 0)
             {
                 if (g > 9) g = 9;
                 return g;
             }
-            return 1;
+            return 0;
         }
     }
 
