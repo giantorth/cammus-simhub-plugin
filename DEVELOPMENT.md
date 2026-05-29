@@ -45,7 +45,7 @@ byte  1    = 0xFC                 header
 byte  2    = lit-count 0..9       or 10 = all-LED blink (shift signal)
 byte  3    = velocity high byte   big-endian u16
 byte  4    = velocity low byte
-byte  5    = gear - 1             0x00 == "no gear" cell
+byte  5    = gear                 1..9; 0 == neutral / reverse / "no gear"
 byte  6..14 = 0x00                padding
 ```
 
@@ -59,7 +59,7 @@ byte  3    = 0xD4
 byte  4    = RPM percent 0..100   not a count
 byte  5    = velocity high byte   big-endian u16
 byte  6    = velocity low byte
-byte  7    = gear - 1
+byte  7    = gear                 1..9; 0 == neutral / reverse / "no gear"
 byte  8..16 = 0x00                padding
 ```
 
@@ -76,8 +76,9 @@ are pure functions of `(lit, velocity, gear)` and easy to unit-test without SimH
 - **C12 percent** — `pct = 100 * lit / LedCount`. `LedCount = 10` is a UI-only assumption
   (see open questions); the firmware itself takes a percentage, not a count.
 - **velocity** — `GameData.NewData.SpeedKmh`, clamped to `ushort`, big-endian.
-- **gear** — `GameData.NewData.Gear` string parsed to int; `R`/`N`/empty → 1, so the
-  on-wire `gear-1` is 0.
+- **gear** — `GameData.NewData.Gear` string parsed to int and sent as-is; `R`/`N`/empty → 0
+  (the "no gear" cell). The reference's `gear-1` was an off-by-one bug — 1st gear must send 1,
+  not 0.
 
 ## SimHub integration
 

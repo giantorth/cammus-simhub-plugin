@@ -72,7 +72,7 @@ namespace CammusPlugin.Devices
             // bytes[0] is the HID report ID (0); HidSharp/Windows strips it before the wire.
             // The protocol payload (0xFC.. / 0xFA..) starts at bytes[1].
             var bytes = new byte[ReportSize + 1];
-            if (gear < 1) gear = 1;
+            if (gear < 0) gear = 0;
 
             switch (Wheel)
             {
@@ -97,7 +97,7 @@ namespace CammusPlugin.Devices
             bytes[2] = (byte)wireLit;
             bytes[3] = (byte)((velocity >> 8) & 0xFF);
             bytes[4] = (byte)(velocity & 0xFF);
-            bytes[5] = (byte)((gear - 1) & 0xFF);
+            bytes[5] = (byte)(gear & 0xFF);
         }
 
         private void BuildC12(byte[] bytes, int lit, ushort velocity, int gear)
@@ -113,7 +113,7 @@ namespace CammusPlugin.Devices
             bytes[4] = (byte)pct;
             bytes[5] = (byte)((velocity >> 8) & 0xFF);
             bytes[6] = (byte)(velocity & 0xFF);
-            bytes[7] = (byte)((gear - 1) & 0xFF);
+            bytes[7] = (byte)(gear & 0xFF);
         }
     }
 }
