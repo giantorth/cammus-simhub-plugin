@@ -58,6 +58,9 @@ namespace CammusPlugin
             try { CammusDeviceDefinitionDeployer.DeployAll(); }
             catch (Exception ex) { CammusLog.Error($"[Cammus] DeployAll threw: {ex.Message}"); }
 
+            try { CammusUsbDiagnostics.LogStartupReport(); }
+            catch (Exception ex) { CammusLog.Warn($"[Cammus] USB diagnostics threw: {ex.Message}"); }
+
             _sender = new CammusReportSender(_connection);
             _connection.TryConnect();
         }

@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
-             d:DesignWidth="520" d:DesignHeight="240"
+             d:DesignWidth="640" d:DesignHeight="640"
              Background="#1F1F1F"
              Foreground="#E0E0E0"
              FontFamily="Segoe UI"
@@ -13,8 +13,9 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0"
@@ -53,14 +54,88 @@
             <TextBlock x:Name="TelemetryText"
                        Text="—"
                        FontFamily="Consolas"
-                       Margin="0,2,0,0"/>
+                       Margin="0,2,0,16"/>
+
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="TestButton"
+                        Content="Send test pattern (5 LEDs, 60 kph, gear 3)"
+                        Padding="14,6"
+                        Click="OnTestButtonClick"/>
+                <Button x:Name="RefreshDevicesButton"
+                        Content="Refresh USB devices"
+                        Padding="14,6"
+                        Margin="10,0,0,0"
+                        Click="OnRefreshDevicesClick"/>
+            </StackPanel>
         </StackPanel>
 
-        <Button x:Name="TestButton"
-                Grid.Row="3"
-                Content="Send test pattern (5 LEDs lit, 60 kph, gear 3)"
-                Padding="14,6"
-                HorizontalAlignment="Left"
-                Click="OnTestButtonClick"/>
+        <!-- USB / HID device enumeration: HidSharp list + Windows registry scan. -->
+        <StackPanel Grid.Row="3" Margin="0,18,0,0">
+            <TextBlock Text="USB / HID devices"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,6"/>
+            <TextBox x:Name="DevicesText"
+                     Text="Click &quot;Refresh USB devices&quot; to scan."
+                     Height="180"
+                     IsReadOnly="True"
+                     Background="#161616"
+                     BorderBrush="#333333"
+                     BorderThickness="1"
+                     Foreground="#C8C8C8"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     Padding="8"
+                     TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"/>
+        </StackPanel>
+
+        <!-- Live HID / diagnostics log mirrored from CammusLog's ring buffer. -->
+        <Grid Grid.Row="4" Margin="0,18,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                <TextBlock Text="HID log"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            DockPanel.Dock="Right">
+                    <CheckBox x:Name="AutoScrollCheck"
+                              Content="Auto-scroll"
+                              IsChecked="True"
+                              VerticalAlignment="Center"
+                              Foreground="#C8C8C8"/>
+                    <Button x:Name="CopyLogButton"
+                            Content="Copy"
+                            Padding="10,3"
+                            Margin="10,0,0,0"
+                            Click="OnCopyLogClick"/>
+                    <Button x:Name="ClearLogButton"
+                            Content="Clear"
+                            Padding="10,3"
+                            Margin="8,0,0,0"
+                            Click="OnClearLogClick"/>
+                </StackPanel>
+            </DockPanel>
+
+            <TextBox x:Name="LogText"
+                     Grid.Row="1"
+                     MinHeight="140"
+                     IsReadOnly="True"
+                     Background="#161616"
+                     BorderBrush="#333333"
+                     BorderThickness="1"
+                     Foreground="#C8C8C8"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     Padding="8"
+                     TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"/>
+        </Grid>
     </Grid>
 </UserControl>
