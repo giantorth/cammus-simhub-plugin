@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -14,6 +15,10 @@ namespace CammusPlugin.UI
 
         private readonly DispatcherTimer _refreshTimer;
 
+        // Set from CammusLog.EntryAdded (any thread); consumed on the UI timer tick
+        // so the log TextBox is rebuilt at most ~4x/sec regardless of log volume.
+        private volatile bool _logDirty = true;
+
         public SettingsControl()
         {
             InitializeComponent();
@@ -23,11 +28,28 @@ namespace CammusPlugin.UI
                 Interval = TimeSpan.FromMilliseconds(250),
             };
             _refreshTimer.Tick += (s, e) => RefreshFromPlugin();
-            Loaded += (s, e) => _refreshTimer.Start();
-            Unloaded += (s, e) => _refreshTimer.Stop();
+
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
 
             RefreshFromPlugin();
         }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            CammusLog.EntryAdded += OnLogEntryAdded;
+            _logDirty = true;
+            _refreshTimer.Start();
+            RefreshDevices();
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            CammusLog.EntryAdded -= OnLogEntryAdded;
+            _refreshTimer.Stop();
+        }
+
+        private void OnLogEntryAdded() => _logDirty = true;
 
         private void RefreshFromPlugin()
         {
@@ -44,6 +66,63 @@ namespace CammusPlugin.UI
                 TelemetryText.Text =
                     $"lit={plugin.LastLit,2}   vel={plugin.LastVelocity,5} kph   gear={plugin.LastGear}";
             }
+
+            if (_logDirty)
+            {
+                _logDirty = false;
+                UpdateLogView();
+            }
+        }
+
+        private void UpdateLogView()
+        {
+            LogText.Text = CammusLog.SnapshotText();
+            if (AutoScrollCheck.IsChecked == true)
+                LogText.ScrollToEnd();
+        }
+
+        // Enumeration touches HidSharp and the registry, which can block briefly;
+        // run it off the UI thread and post the result back.
+        private void RefreshDevices()
+        {
+            DevicesText.Text = "Scanning USB / HID devices…";
+            RefreshDevicesButton.IsEnabled = false;
+
+            Task.Run(() =>
+            {
+                string report;
+                try
+                {
+                    report = CammusUsbDiagnostics.BuildHidDevicesReport()
+                             + Environment.NewLine
+                             + "──────────────────────────────────────────" + Environment.NewLine
+                             + CammusUsbDiagnostics.BuildRegistryReport();
+                }
+                catch (Exception ex)
+                {
+                    report = $"Device scan failed: {ex.GetType().Name}: {ex.Message}";
+                }
+
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    DevicesText.Text = report;
+                    RefreshDevicesButton.IsEnabled = true;
+                }));
+            });
+        }
+
+        private void OnRefreshDevicesClick(object sender, RoutedEventArgs e) => RefreshDevices();
+
+        private void OnCopyLogClick(object sender, RoutedEventArgs e)
+        {
+            try { Clipboard.SetText(CammusLog.SnapshotText()); }
+            catch (Exception ex) { CammusLog.Warn($"[Cammus] Copy log failed: {ex.Message}"); }
+        }
+
+        private void OnClearLogClick(object sender, RoutedEventArgs e)
+        {
+            CammusLog.Clear();
+            _logDirty = true;
         }
 
         private void OnTestButtonClick(object sender, RoutedEventArgs e)

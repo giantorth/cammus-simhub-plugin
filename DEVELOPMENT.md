@@ -157,10 +157,32 @@ Devices/
   CammusWheelDeviceExtension.cs         DeviceExtension: reflection injection on first DataUpdate
   CammusDeviceExtensionFilter.cs        IDeviceExtensionFilter: GUID match -> attach extension
   CammusDeviceDefinitionDeployer.cs     extracts embedded device.json to DevicesDefinitions/User
-UI/SettingsControl.xaml[.cs]            single-tab status pill + telemetry readout + test button
+  CammusUsbDiagnostics.cs               read-only HID enumeration + registry (Enum\USB) scan
+  CammusLog.cs                          SimHub logger passthrough + in-memory ring buffer for the UI
+UI/SettingsControl.xaml[.cs]            status pill + telemetry + test button + USB diagnostics + HID log
 DeviceTemplates/CammusC5|C12/device.json  embedded SimHub device descriptors (placeholder VID/PID)
 libs/SimHub/                            SimHub runtime DLLs to compile against (Private=false)
 ```
+
+## Diagnostics
+
+The plugin's settings panel (`UI/SettingsControl`) carries two diagnostic views so a
+user can troubleshoot a non-detected wheel without opening SimHub's log files:
+
+- **USB / HID devices** — `CammusUsbDiagnostics` enumerates two independent sources:
+  - HidSharp's HID device list (what the plugin can actually open and write to), with
+    the Cammus VID `0x3416` matches called out and a per-device open probe.
+  - The Windows registry under `HKLM\SYSTEM\CurrentControlSet\Enum\USB` (what the OS
+    believes is plugged in). A device that appears here but **not** in the HidSharp list
+    is the "plugged in but unusable" case (held by another process, wrong mode, etc).
+    The scan runs off the UI thread on demand via the *Refresh USB devices* button.
+- **HID log** — `CammusLog` mirrors every line it sends to SimHub's logger into a bounded
+  in-memory ring buffer (newest 500 entries). The panel renders it live (Copy / Clear /
+  auto-scroll). At `Init()` the plugin logs a one-line USB summary and, when no Cammus
+  device is found, dumps the full HID enumeration so the state at boot is captured.
+
+These are read-only inspections — they never open the wheel for writing (the open probe
+disposes its handle immediately) so they can't race `CammusHidConnection`'s stream.
 
 ## Build & deploy
 
